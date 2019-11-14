@@ -1,0 +1,11 @@
+[package]
+name = "group-finder-bot"
+version = "0.1.0"
+authors = ["orion78fr <orion78fr@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+[dependencies.serenity]
+version = "0.7"
+features = ["framework", "standard_framework"]
