@@ -19,6 +19,11 @@ use serenity::{prelude::*,
                    },
                },
                utils::MessageBuilder};
+use crate::games_model::{GuildGames, Category};
+use crate::utils::format_post;
+
+mod games_model;
+mod utils;
 
 group!({
     name: "manage",
@@ -99,14 +104,9 @@ fn here(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
 
     match msg.channel_id.say(&ctx.http, &answer) {
         Ok(m) => {
-            /*m.react(&ctx,
-                    ReactionType::Unicode(String::from(TRASHCAN))).unwrap();*/
-
-            {
-                let mut data = ctx.data.write();
-                data.get_mut::<GuildGames>().unwrap()
-                    .set_msg(msg.guild_id.unwrap(), m.channel_id, m.id);
-            }
+            let mut data = ctx.data.write();
+            data.get_mut::<GuildGames>().unwrap()
+                .set_msg(msg.guild_id.unwrap(), m.channel_id, m.id);
         }
         Err(e) => eprintln!("Error ! Cannot answer !")
     };
@@ -124,20 +124,11 @@ fn add_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResu
     msg.delete(&ctx); // Don't care if failing
 
     if args.len() != 1 {
-        let answer = MessageBuilder::new()
-            .push("Wrong number of arguments.\n")
-            .push("Use \"")
-            .mention(&bot_id)
-            .push(" add_category category_name\" to add a category")
-            .build();
+        let answer = wrong_argument_message(args.len(), 1,
+                                            &bot_id, "add_category",
+                                            vec!("category_name"), "add a category");
 
-        match msg.channel_id.say(&ctx.http, &answer) {
-            Ok(m) => {
-                m.react(&ctx,
-                        ReactionType::Unicode(String::from(TRASHCAN_EMOJI))).unwrap();
-            }
-            Err(e) => eprintln!("Error ! Cannot answer !")
-        };
+        message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
         let mut guild_games = data.get_mut::<GuildGames>().unwrap();
@@ -159,20 +150,11 @@ fn add_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     msg.delete(&ctx); // Don't care if failing
 
     if args.len() != 3 {
-        let answer = MessageBuilder::new()
-            .push("Wrong number of arguments.\n")
-            .push("Use \"")
-            .mention(&bot_id)
-            .push(" add_game category_name, game_name, emoji\" to add a game")
-            .build();
+        let answer = wrong_argument_message(args.len(), 3,
+                                            &bot_id, "add_game",
+                                            vec!("category_name", "game_name", "emoji"), "add a game");
 
-        match msg.channel_id.say(&ctx.http, &answer) {
-            Ok(m) => {
-                m.react(&ctx,
-                        ReactionType::Unicode(String::from(TRASHCAN_EMOJI))).unwrap();
-            }
-            Err(e) => eprintln!("Error ! Cannot answer !")
-        };
+        message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
         let mut guild_games = data.get_mut::<GuildGames>().unwrap();
@@ -198,20 +180,11 @@ fn remove_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
     msg.delete(&ctx); // Don't care if failing
 
     if args.len() != 2 {
-        let answer = MessageBuilder::new()
-            .push("Wrong number of arguments.\n")
-            .push("Use \"")
-            .mention(&bot_id)
-            .push(" remove_game category_name, game_name\" to remove a game")
-            .build();
+        let answer = wrong_argument_message(args.len(), 2,
+                                            &bot_id, "remove_game",
+                                            vec!("category_name", "game_name"), "remove a game");
 
-        match msg.channel_id.say(&ctx.http, &answer) {
-            Ok(m) => {
-                m.react(&ctx,
-                        ReactionType::Unicode(String::from(TRASHCAN_EMOJI))).unwrap();
-            }
-            Err(e) => eprintln!("Error ! Cannot answer !")
-        };
+        message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
         let mut guild_games = data.get_mut::<GuildGames>().unwrap();
@@ -236,20 +209,11 @@ fn remove_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandR
     msg.delete(&ctx); // Don't care if failing
 
     if args.len() != 1 {
-        let answer = MessageBuilder::new()
-            .push("Wrong number of arguments.\n")
-            .push("Use \"")
-            .mention(&bot_id)
-            .push(" remove_category category_name\" to remove a category")
-            .build();
+        let answer = wrong_argument_message(args.len(), 1,
+                                            &bot_id, "remove_category",
+                                            vec!("category_name"), "remove a category");
 
-        match msg.channel_id.say(&ctx.http, &answer) {
-            Ok(m) => {
-                m.react(&ctx,
-                        ReactionType::Unicode(String::from(TRASHCAN_EMOJI))).unwrap();
-            }
-            Err(e) => eprintln!("Error ! Cannot answer !")
-        };
+        message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
         let mut guild_games = data.get_mut::<GuildGames>().unwrap();
@@ -263,9 +227,47 @@ fn remove_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandR
     Ok(())
 }
 
+fn message_with_trashcan(ctx: &Context, message_content: &String, channel: &ChannelId) {
+    match channel.say(&ctx.http, message_content) {
+        Ok(m) => {
+            m.react(ctx,
+                    ReactionType::Unicode(String::from(TRASHCAN_EMOJI))).unwrap();
+        }
+        Err(e) => eprintln!("Error ! Cannot answer ! {:?}", e)
+    };
+}
+
 fn update_message(ctx: &Context, chan: &ChannelId, msg_to_edit: &MessageId, categories: &HashMap<String, Category>) {
     ctx.http().get_message(chan.0, msg_to_edit.0).unwrap()
         .edit(ctx, |m| m.content(format_post(categories)));
+}
+
+fn wrong_argument_message(args_num: usize,
+                          expected_args_num: usize,
+                          bot_id: &UserId,
+                          command_name: &str,
+                          args_name: Vec<&str>,
+                          desc: &str) -> String {
+    let mut mb = MessageBuilder::new();
+
+    mb.push("Wrong number of arguments (")
+        .push(args_num)
+        .push(" instead of ")
+        .push(expected_args_num)
+        .push(")\n");
+
+    mb.push("Use \"")
+        .mention(bot_id)
+        .push(" ")
+        .push(command_name);
+
+    args_name.iter().for_each(|arg| {
+        mb.push(" ").push(arg);
+    });
+
+    mb.push("\" to ")
+        .push(desc)
+        .build()
 }
 
 static TRASHCAN_EMOJI: &str = "\u{1F5D1}\u{FE0F}";
@@ -281,10 +283,9 @@ impl EventHandler for Handler {
         let bot_id = *ctx.data.read().get::<BotId>().unwrap();
         if added_reaction.user_id != bot_id {
             let reacted_msg = added_reaction.message(&ctx.http).unwrap();
-            if reacted_msg.author.id == bot_id {
-                if added_reaction.emoji == ReactionType::Unicode(String::from(TRASHCAN_EMOJI)) {
-                    reacted_msg.delete(&ctx);
-                }
+            if reacted_msg.author.id == bot_id
+                && added_reaction.emoji == ReactionType::Unicode(String::from(TRASHCAN_EMOJI)) {
+                reacted_msg.delete(&ctx);
             }
         }
     }
@@ -294,123 +295,10 @@ impl EventHandler for Handler {
     }
 }
 
-fn format_post(categories: &HashMap<String, Category>) -> String {
-    if categories.is_empty() {
-        return String::from("Please add a category.");
-    }
-
-    let mut mb = MessageBuilder::new();
-
-    categories.values().for_each(|cat| {
-        mb.push_bold_line(cat.name());
-
-        let games = cat.games();
-        if games.is_empty() {
-            mb.push("Please add a game.");
-        } else {
-            games.values().for_each(|game| {
-                // TODO mb.emoji(game.emoji);
-                mb.push(game.emoji.0);
-
-                mb.push(" - ")
-                    .push(&game.name)
-                    .push("\n");
-            });
-        }
-
-        mb.push("\n");
-    });
-
-    mb.build()
-}
-
 struct BotId;
 
 impl TypeMapKey for BotId {
     type Value = UserId;
-}
-
-struct GuildGames {
-    guild_msg: HashMap<GuildId, (ChannelId, MessageId)>,
-    guild_categories: HashMap<GuildId, HashMap<String, Category>>,
-}
-
-impl GuildGames {
-    pub fn new() -> GuildGames {
-        GuildGames {
-            guild_msg: HashMap::new(),
-            guild_categories: HashMap::new(),
-        }
-    }
-
-    pub fn msg(&self, guild_id: &GuildId) -> Option<&(ChannelId, MessageId)> {
-        self.guild_msg.get(guild_id)
-    }
-
-    pub fn categories(&self, guild_id: &GuildId) -> Option<&HashMap<String, Category>> {
-        self.guild_categories.get(guild_id)
-    }
-
-    pub fn set_msg(&mut self, guild_id: GuildId, channel_id: ChannelId, message_id: MessageId) {
-        self.guild_msg.insert(guild_id, (channel_id, message_id));
-    }
-
-    pub fn add_category(&mut self, guild_id: GuildId, category_name: String) {
-        self.guild_categories.entry(guild_id).or_insert(HashMap::new())
-            .insert(category_name.clone(), Category::new(category_name));
-    }
-
-    pub fn remove_category(&mut self, guild_id: &GuildId, category_name: &str) {
-        self.guild_categories.get_mut(guild_id).unwrap()
-            .remove(category_name);
-    }
-
-    pub fn add_game(&mut self, guild_id: &GuildId, category_name: &String, name: String, emoji: EmojiId) {
-        self.guild_categories.get_mut(guild_id).unwrap()
-            .get_mut(category_name).unwrap()
-            .add_game(name, emoji);
-    }
-
-    pub fn remove_game(&mut self, guild_id: &GuildId, category_name: &str, name: &str) {
-        self.guild_categories.get_mut(guild_id).unwrap()
-            .get_mut(category_name).unwrap()
-            .remove_game(name);
-    }
-}
-
-struct Category {
-    name: String,
-    games: HashMap<String, Game>,
-}
-
-impl Category {
-    pub fn new(name: String) -> Category {
-        Category {
-            name,
-            games: HashMap::new(),
-        }
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn add_game(&mut self, name: String, emoji: EmojiId) {
-        self.games.insert(name.clone(), Game { name, emoji });
-    }
-
-    pub fn remove_game(&mut self, name: &str) {
-        self.games.remove(name);
-    }
-
-    pub fn games(&self) -> &HashMap<String, Game> {
-        &self.games
-    }
-}
-
-struct Game {
-    name: String,
-    emoji: EmojiId,
 }
 
 impl TypeMapKey for GuildGames {
