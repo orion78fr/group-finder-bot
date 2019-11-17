@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::games_model::Category;
 use serenity::utils::MessageBuilder;
+use chrono::Local;
 
 pub fn format_post(categories: &HashMap<String, Category>) -> String {
     if categories.is_empty() {
@@ -32,5 +33,8 @@ pub fn format_post(categories: &HashMap<String, Category>) -> String {
         mb.push("\n");
     });
 
-    mb.build()
+    mb.push("(Last updated on ")
+        .push(Local::now().to_rfc2822())
+        .push(")")
+        .build()
 }

@@ -1,19 +1,26 @@
 use std::collections::HashMap;
-use serenity::model::id::{GuildId, ChannelId, MessageId};
+use serenity::model::id::{GuildId, ChannelId, MessageId, EmojiId};
 use serenity::model::misc::EmojiIdentifier;
+use std::{fs, io};
 
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct GuildGames {
     guild_msg: HashMap<GuildId, (ChannelId, MessageId)>,
     guild_categories: HashMap<GuildId, HashMap<String, Category>>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Category {
     name: String,
     games: HashMap<String, Game>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Game {
     name: String,
+    #[serde(with = "EmojiIdentifierDef")]
     emoji: EmojiIdentifier,
 }
 
@@ -27,6 +34,10 @@ impl GuildGames {
 
     pub fn msg(&self, guild_id: &GuildId) -> Option<&(ChannelId, MessageId)> {
         self.guild_msg.get(guild_id)
+    }
+
+    pub fn msgs(&self) -> &HashMap<GuildId, (ChannelId, MessageId)> {
+        &self.guild_msg
     }
 
     pub fn categories(&self, guild_id: &GuildId) -> Option<&HashMap<String, Category>> {
@@ -92,5 +103,33 @@ impl Game {
 
     pub fn emoji(&self) -> &EmojiIdentifier {
         &self.emoji
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "EmojiIdentifier")]
+struct EmojiIdentifierDef {
+    pub id: EmojiId,
+    pub name: String,
+}
+
+pub fn save(data: &GuildGames) -> io::Result<()> {
+    println!("Saving data...");
+    fs::write("data.json", serde_json::to_string(data).unwrap())
+}
+
+pub fn load() -> Option<GuildGames> {
+    let data = fs::read_to_string("data.json");
+    if data.is_err() {
+        eprintln!("{}", data.unwrap_err().to_string());
+        None
+    } else {
+        match serde_json::from_str(&data.unwrap()) {
+            Ok(r) => Some(r),
+            Err(why) => {
+                eprintln!("{}", why);
+                None
+            }
+        }
     }
 }

@@ -62,7 +62,7 @@ fn main() {
         let mut data = client.data.write();
 
         data.insert::<BotId>(bot_id);
-        data.insert::<GuildGames>(GuildGames::new());
+        data.insert::<GuildGames>(games_model::load().unwrap_or(GuildGames::new()));
     }
 
     client.with_framework(StandardFramework::new()
@@ -147,6 +147,8 @@ fn add_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResu
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
+
+        games_model::save(guild_games);
     }
 
     Ok(())
@@ -170,13 +172,15 @@ fn add_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
         let mut guild_games = data.get_mut::<GuildGames>().unwrap();
         let category = String::from(args.current().unwrap());
         let game_name = String::from(args.advance().current().unwrap());
-        let emoji:EmojiIdentifier = args.advance().current().unwrap().parse().unwrap();
+        let emoji: EmojiIdentifier = args.advance().current().unwrap().parse().unwrap();
 
         guild_games.add_game(&guild_id, &category, game_name, emoji);
 
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
+
+        games_model::save(guild_games);
     }
 
     Ok(())
@@ -206,6 +210,8 @@ fn remove_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
+
+        games_model::save(guild_games);
     }
 
     Ok(())
@@ -232,6 +238,8 @@ fn remove_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandR
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
+
+        games_model::save(guild_games);
     }
 
     Ok(())
@@ -302,6 +310,18 @@ impl EventHandler for Handler {
 
     fn reaction_remove(&self, _ctx: Context, _removed_reaction: Reaction) {
         // TODO undo presence
+    }
+
+    fn ready(&self, ctx: Context, _data_about_bot: Ready) {
+        // Update all messages
+        let mut data = ctx.data.write();
+        let mut guild_games = data.get_mut::<GuildGames>().unwrap();
+
+        guild_games.msgs().iter()
+            .for_each(|(guild_id, (channel_id, message_id))| {
+                let categories = guild_games.categories(guild_id).unwrap();
+                update_message(&ctx, channel_id, message_id, categories);
+            });
     }
 }
 
