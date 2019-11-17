@@ -256,8 +256,8 @@ fn message_with_trashcan(ctx: &Context, message_content: &String, channel: &Chan
 }
 
 fn update_message(ctx: &Context, chan: &ChannelId, msg_to_edit: &MessageId, categories: &HashMap<String, Category>) {
-    ctx.http().get_message(chan.0, msg_to_edit.0).unwrap()
-        .edit(ctx, |m| m.content(format_post(categories)));
+    let mut msg = ctx.http().get_message(chan.0, msg_to_edit.0).unwrap();
+    msg.edit(ctx, |m| m.content(format_post(categories)));
 }
 
 fn wrong_argument_message(args_num: usize,
@@ -321,6 +321,15 @@ impl EventHandler for Handler {
             .for_each(|(guild_id, (channel_id, message_id))| {
                 let categories = guild_games.categories(guild_id).unwrap();
                 update_message(&ctx, channel_id, message_id, categories);
+
+                // Refresh reactions
+                ctx.http.delete_message_reactions(channel_id.0, message_id.0).unwrap();
+                categories.values().flat_map(|cat| cat.games().values())
+                    .map(|game| game.emoji())
+                    .for_each(|emoji| {
+                        ctx.http.create_reaction(channel_id.0, message_id.0,
+                                                 &ReactionType::Custom { animated: false, id: emoji.id, name: Some(String::from(&emoji.name)) });
+                    })
             });
     }
 }
