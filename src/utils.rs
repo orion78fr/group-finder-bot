@@ -17,8 +17,11 @@ pub fn format_post(categories: &HashMap<String, Category>) -> String {
             mb.push("Please add a game.");
         } else {
             games.values().for_each(|game| {
-                // TODO mb.emoji(game.emoji);
-                mb.push(game.emoji().0);
+                mb.push("<:")
+                    .push(&game.emoji().name)
+                    .push(":")
+                    .push(&game.emoji().id)
+                    .push(">");
 
                 mb.push(" - ")
                     .push(game.name())

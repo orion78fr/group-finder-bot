@@ -70,6 +70,16 @@ fn main() {
             .with_whitespace(true)
             .on_mention(Some(bot_id))
             .delimiters(vec![", ", ","]))
+        .unrecognised_command(|ctx, msg, unrecognised_command| {
+            // For debugging purposes
+            println!("Unrecognised message : {}", msg.content);
+            let splits: Vec<&str> = msg.content.split_ascii_whitespace().skip(1).collect();
+            if splits.len() == 1 {
+                let emoji: EmojiIdentifier = splits[0].parse().unwrap();
+                println!("Emoji : {} : {}", emoji.name, emoji.id);
+                msg.reply(&ctx, format!("<:{}:{}>", emoji.name, emoji.id));
+            }
+        })
         .group(&MANAGE_GROUP));
 
     if let Err(why) = client.start() {
@@ -160,9 +170,9 @@ fn add_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
         let mut guild_games = data.get_mut::<GuildGames>().unwrap();
         let category = String::from(args.current().unwrap());
         let game_name = String::from(args.advance().current().unwrap());
-        let emoji = args.advance().current().unwrap().parse().unwrap();
+        let emoji:EmojiIdentifier = args.advance().current().unwrap().parse().unwrap();
 
-        guild_games.add_game(&guild_id, &category, game_name, EmojiId(emoji));
+        guild_games.add_game(&guild_id, &category, game_name, emoji);
 
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use serenity::model::id::{GuildId, ChannelId, MessageId, EmojiId};
+use serenity::model::id::{GuildId, ChannelId, MessageId};
+use serenity::model::misc::EmojiIdentifier;
 
 pub struct GuildGames {
     guild_msg: HashMap<GuildId, (ChannelId, MessageId)>,
@@ -13,7 +14,7 @@ pub struct Category {
 
 pub struct Game {
     name: String,
-    emoji: EmojiId,
+    emoji: EmojiIdentifier,
 }
 
 impl GuildGames {
@@ -46,7 +47,7 @@ impl GuildGames {
             .remove(category_name);
     }
 
-    pub fn add_game(&mut self, guild_id: &GuildId, category_name: &String, name: String, emoji: EmojiId) {
+    pub fn add_game(&mut self, guild_id: &GuildId, category_name: &String, name: String, emoji: EmojiIdentifier) {
         self.guild_categories.get_mut(guild_id).unwrap()
             .get_mut(category_name).unwrap()
             .add_game(name, emoji);
@@ -71,7 +72,7 @@ impl Category {
         &self.name
     }
 
-    pub fn add_game(&mut self, name: String, emoji: EmojiId) {
+    pub fn add_game(&mut self, name: String, emoji: EmojiIdentifier) {
         self.games.insert(name.clone(), Game { name, emoji });
     }
 
@@ -89,7 +90,7 @@ impl Game {
         &self.name
     }
 
-    pub fn emoji(&self) -> &EmojiId {
+    pub fn emoji(&self) -> &EmojiIdentifier {
         &self.emoji
     }
 }
