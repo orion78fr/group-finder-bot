@@ -70,15 +70,9 @@ fn main() {
             .with_whitespace(true)
             .on_mention(Some(bot_id))
             .delimiters(vec![", ", ","]))
-        .unrecognised_command(|ctx, msg, unrecognised_command| {
+        .unrecognised_command(|_ctx, msg, _unrecognised_command| {
             // For debugging purposes
             println!("Unrecognised message : {}", msg.content);
-            let splits: Vec<&str> = msg.content.split_ascii_whitespace().skip(1).collect();
-            if splits.len() == 1 {
-                let emoji: EmojiIdentifier = splits[0].parse().unwrap();
-                println!("Emoji : {} : {}", emoji.name, emoji.id);
-                msg.reply(&ctx, format!("<:{}:{}>", emoji.name, emoji.id));
-            }
         })
         .group(&MANAGE_GROUP));
 
@@ -88,14 +82,14 @@ fn main() {
 }
 
 #[command]
-fn lang(_ctx: &mut Context, _msg: &Message, mut args: Args) -> CommandResult {
+fn lang(_ctx: &mut Context, _msg: &Message, args: Args) -> CommandResult {
     // TODO allow different langs
     println!("Command lang {:?}", args);
     Ok(())
 }
 
 #[command]
-fn here(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+fn here(ctx: &mut Context, msg: &Message, _args: Args) -> CommandResult {
     let bot_id = *ctx.data.read().get::<BotId>().unwrap();
 
     let channel = msg.channel(&ctx.cache).unwrap();
@@ -118,20 +112,20 @@ fn here(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
             data.get_mut::<GuildGames>().unwrap()
                 .set_msg(msg.guild_id.unwrap(), m.channel_id, m.id);
         }
-        Err(e) => eprintln!("Error ! Cannot answer !")
+        Err(_e) => eprintln!("Error ! Cannot answer !")
     };
 
-    msg.delete(&ctx); // Don't care if failing
+    msg.delete(&ctx).unwrap();
 
     Ok(())
 }
 
 #[command]
-fn add_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+fn add_category(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     let bot_id = *ctx.data.read().get::<BotId>().unwrap();
     let guild_id = msg.guild_id.unwrap();
 
-    msg.delete(&ctx); // Don't care if failing
+    msg.delete(&ctx).unwrap();
 
     if args.len() != 1 {
         let answer = wrong_argument_message(args.len(), 1,
@@ -141,14 +135,14 @@ fn add_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResu
         message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
-        let mut guild_games = data.get_mut::<GuildGames>().unwrap();
+        let guild_games = data.get_mut::<GuildGames>().unwrap();
 
         guild_games.add_category(guild_id, String::from(args.current().unwrap()));
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
 
-        games_model::save(guild_games);
+        games_model::save(guild_games).unwrap();
     }
 
     Ok(())
@@ -159,7 +153,7 @@ fn add_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
     let bot_id = *ctx.data.read().get::<BotId>().unwrap();
     let guild_id = msg.guild_id.unwrap();
 
-    msg.delete(&ctx); // Don't care if failing
+    msg.delete(&ctx).unwrap();
 
     if args.len() != 3 {
         let answer = wrong_argument_message(args.len(), 3,
@@ -169,7 +163,7 @@ fn add_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
         message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
-        let mut guild_games = data.get_mut::<GuildGames>().unwrap();
+        let guild_games = data.get_mut::<GuildGames>().unwrap();
         let category = String::from(args.current().unwrap());
         let game_name = String::from(args.advance().current().unwrap());
         let emoji: EmojiIdentifier = args.advance().current().unwrap().parse().unwrap();
@@ -180,7 +174,7 @@ fn add_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
 
-        games_model::save(guild_games);
+        games_model::save(guild_games).unwrap();
     }
 
     Ok(())
@@ -191,7 +185,7 @@ fn remove_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
     let bot_id = *ctx.data.read().get::<BotId>().unwrap();
     let guild_id = msg.guild_id.unwrap();
 
-    msg.delete(&ctx); // Don't care if failing
+    msg.delete(&ctx).unwrap();
 
     if args.len() != 2 {
         let answer = wrong_argument_message(args.len(), 2,
@@ -201,7 +195,7 @@ fn remove_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
         message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
-        let mut guild_games = data.get_mut::<GuildGames>().unwrap();
+        let guild_games = data.get_mut::<GuildGames>().unwrap();
         let category = String::from(args.current().unwrap());
         let game_name = args.advance().current().unwrap();
 
@@ -211,18 +205,18 @@ fn remove_game(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResul
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
 
-        games_model::save(guild_games);
+        games_model::save(guild_games).unwrap();
     }
 
     Ok(())
 }
 
 #[command]
-fn remove_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandResult {
+fn remove_category(ctx: &mut Context, msg: &Message, args: Args) -> CommandResult {
     let bot_id = *ctx.data.read().get::<BotId>().unwrap();
     let guild_id = msg.guild_id.unwrap();
 
-    msg.delete(&ctx); // Don't care if failing
+    msg.delete(&ctx).unwrap();
 
     if args.len() != 1 {
         let answer = wrong_argument_message(args.len(), 1,
@@ -232,14 +226,14 @@ fn remove_category(ctx: &mut Context, msg: &Message, mut args: Args) -> CommandR
         message_with_trashcan(ctx, &answer, &msg.channel_id);
     } else {
         let mut data = ctx.data.write();
-        let mut guild_games = data.get_mut::<GuildGames>().unwrap();
+        let guild_games = data.get_mut::<GuildGames>().unwrap();
 
         guild_games.remove_category(&guild_id, args.current().unwrap());
         let (chan, msg_to_edit) = guild_games.msg(&guild_id).unwrap();
         let categories = guild_games.categories(&guild_id).unwrap();
         update_message(ctx, chan, msg_to_edit, categories);
 
-        games_model::save(guild_games);
+        games_model::save(guild_games).unwrap();
     }
 
     Ok(())
@@ -257,7 +251,7 @@ fn message_with_trashcan(ctx: &Context, message_content: &String, channel: &Chan
 
 fn update_message(ctx: &Context, chan: &ChannelId, msg_to_edit: &MessageId, categories: &HashMap<String, Category>) {
     let mut msg = ctx.http().get_message(chan.0, msg_to_edit.0).unwrap();
-    msg.edit(ctx, |m| m.content(format_post(categories)));
+    msg.edit(ctx, |m| m.content(format_post(categories))).unwrap();
 }
 
 fn wrong_argument_message(args_num: usize,
@@ -289,8 +283,8 @@ fn wrong_argument_message(args_num: usize,
 }
 
 static TRASHCAN_EMOJI: &str = "\u{1F5D1}\u{FE0F}";
-static YEA_EMOJI: &str = "\u{2714}\u{FE0F}";
-static NAY_EMOJI: &str = "\u{274C}";
+static _YEA_EMOJI: &str = "\u{2714}\u{FE0F}";
+static _NAY_EMOJI: &str = "\u{274C}";
 
 struct Handler;
 
@@ -303,7 +297,7 @@ impl EventHandler for Handler {
             let reacted_msg = added_reaction.message(&ctx.http).unwrap();
             if reacted_msg.author.id == bot_id
                 && added_reaction.emoji == ReactionType::Unicode(String::from(TRASHCAN_EMOJI)) {
-                reacted_msg.delete(&ctx);
+                reacted_msg.delete(&ctx).unwrap();
             }
         }
     }
@@ -315,7 +309,7 @@ impl EventHandler for Handler {
     fn ready(&self, ctx: Context, _data_about_bot: Ready) {
         // Update all messages
         let mut data = ctx.data.write();
-        let mut guild_games = data.get_mut::<GuildGames>().unwrap();
+        let guild_games = data.get_mut::<GuildGames>().unwrap();
 
         guild_games.msgs().iter()
             .for_each(|(guild_id, (channel_id, message_id))| {
@@ -328,8 +322,8 @@ impl EventHandler for Handler {
                     .map(|game| game.emoji())
                     .for_each(|emoji| {
                         ctx.http.create_reaction(channel_id.0, message_id.0,
-                                                 &ReactionType::Custom { animated: false, id: emoji.id, name: Some(String::from(&emoji.name)) });
-                    })
+                                                 &ReactionType::Custom { animated: false, id: emoji.id, name: Some(String::from(&emoji.name)) }).unwrap();
+                    });
             });
     }
 }
